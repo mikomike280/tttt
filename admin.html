@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Portal - Lifetime Technology Kenya</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'vantablack': '#0a0a0a',
+                    },
+                    boxShadow: {
+                        '3d': '0 4px 8px rgba(0, 0, 0, 0.1), 0 6px 20px rgba(0, 0, 0, 0.05)',
+                        '3d-hover': '0 8px 16px rgba(0, 0, 0, 0.15), 0 12px 30px rgba(0, 0, 0, 0.1)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Supabase Configuration
+        const SUPABASE_URL = 'https://mholriycnpbkdaxlmmby.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ob2xyaXljbnBia2RheGxtbWJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAyNDQxMjMsImV4cCI6MjA2NTgyMDEyM30.PO3kDxJru16MWBBJyNPhA9mp3hWV0DTIhrNvdcGxogg';
+
+        // Simple Supabase client
+        const supabase = {
+            from: (table) => ({
+                select: (columns = '*') => ({
+                    order: (column, options = {}) => ({
+                        eq: (field, value) => ({
+                            then: async (callback) => {
+                                try {
+                                    const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=${columns}&${field}=eq.${value}&order=${column}.${options.ascending ? 'asc' : 'desc'}`, {
+                                        headers: {
+                                            'apikey': SUPABASE_ANON_KEY,
+                                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                                            'Content-Type': 'application/json'
+                                        }
+                                    });
+                                    const data = await response.json();
+                                    callback({ data, error: null });
+                                } catch (error) {
+                                    callback({ data: null, error });
+                                }
+                            }
+                        }),
+                        then: async (callback) => {
+                            try {
+                                const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=${columns}&order=${column}.${options.ascending ? 'asc' : 'desc'}`, {
+                                    headers: {
+                                        'apikey': SUPABASE_ANON_KEY,
+                                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                                        'Content-Type': 'application/json'
+                                    }
+                                });
+                                const data = await response.json();
+                                callback({ data, error: null });
+                            } catch (error) {
+                                callback({ data: null, error });
+                            }
+                        }
+                    }),
+                    then: async (callback) => {
+                        try {
+                            const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=${columns}`, {
+                                headers: {
+                                    'apikey': SUPABASE_ANON_KEY,
+                                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+                            const data = await response.json();
+                            callback({ data, error: null });
+                        } catch (error) {
+                            callback({ data: null, error });
+                        }
+                    }
+                }),
+                update: (updates) => ({
+                    eq: (field, value) => ({
+                        select: () => ({
+                            single: () => ({
+                                then: async (callback) => {
+                                    try {
+                                        const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${field}=eq.${value}`, {
+                                            method: 'PATCH',
+                                            headers: {
+                                                'apikey': SUPABASE_ANON_KEY,
+                                                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                                                'Content-Type': 'application/json',
+                                                'Prefer': 'return=representation'
+                                            },
+                                            body: JSON.stringify(updates)
+                                        });
+                                        const data = await response.json();
+                                        callback({ data: data[0], error: null });
+                                    } catch (error) {
+                                        callback({ data: null, error });
+                                    }
+                                }
+                            })
+                        })
+                    })
+                })
+            })
+        };
+
+        // Icons (simplified versions)
+        const SearchIcon = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
+            </svg>
+        );
+
+        const DownloadIcon = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7,10 12,15 17,10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+        );
+
+        const EyeIcon = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+        );
+
+        const CheckCircleIcon = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22,4 12,14.01 9,11.01"></polyline>
+            </svg>
+        );
+
+        const XCircleIcon = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
+            </svg>
+        );
+
+        const ClockIcon = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12,6 12,12 16,14"></polyline>
+            </svg>
+        );
+
+        const PackageIcon = () => (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="16.5" y1="9.4" x2="7.5" y2="4.21"></line>
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27,6.96 12,12.01 20.73,6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+        );
+
+        const DollarSignIcon = () => (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="1" x2="12" y2="23"></line>
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+        );
+
+        function AdminOrders() {
+            const [orders, setOrders] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [searchTerm, setSearchTerm] = useState('');
+            const [statusFilter, setStatusFilter] = useState('all');
+            const [selectedOrder, setSelectedOrder] = useState(null);
+            const [stats, setStats] = useState({
+                totalOrders: 0,
+                pendingOrders: 0,
+                completedOrders: 0,
+                totalRevenue: 0
+            });
+
+            useEffect(() => {
+                fetchOrders();
+            }, []);
+
+            const fetchOrders = async () => {
+                try {
+                    const { data, error } = await supabase
+                        .from('orders')
+                        .select('*')
+                        .order('created_at', { ascending: false });
+
+                    if (error) throw error;
+                    
+                    setOrders(data || []);
+                    
+                    // Calculate stats
+                    const totalOrders = data?.length || 0;
+                    const pendingOrders = data?.filter(o => o.status === 'pending').length || 0;
+                    const completedOrders = data?.filter(o => ['delivered', 'paid'].includes(o.status)).length || 0;
+                    const totalRevenue = data?.reduce((sum, order) => sum + (Number(order.amount) || 0), 0) || 0;
+                    
+                    setStats({
+                        totalOrders,
+                        pendingOrders,
+                        completedOrders,
+                        totalRevenue
+                    });
+                } catch (error) {
+                    console.error('Error fetching orders:', error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const filteredOrders = orders.filter(order => {
+                const matchesSearch = 
+                    order.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    order.phone_number?.includes(searchTerm) ||
+                    order.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    order.product_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    order.order_number?.toLowerCase().includes(searchTerm.toLowerCase());
+
+                const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+
+                return matchesSearch && matchesStatus;
+            });
+
+            const getStatusIcon = (status) => {
+                switch (status) {
+                    case 'delivered':
+                    case 'paid':
+                        return <CheckCircleIcon />;
+                    case 'cancelled':
+                        return <XCircleIcon />;
+                    default:
+                        return <ClockIcon />;
+                }
+            };
+
+            const getStatusColor = (status) => {
+                switch (status) {
+                    case 'delivered':
+                    case 'paid':
+                        return 'bg-green-100 text-green-800 border-green-200';
+                    case 'cancelled':
+                        return 'bg-red-100 text-red-800 border-red-200';
+                    case 'processing':
+                    case 'shipped':
+                        return 'bg-blue-100 text-blue-800 border-blue-200';
+                    default:
+                        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+                }
+            };
+
+            const updateOrderStatus = async (orderId, newStatus) => {
+                try {
+                    const { data, error } = await supabase
+                        .from('orders')
+                        .update({ status: newStatus })
+                        .eq('id', orderId)
+                        .select()
+                        .single();
+
+                    if (error) throw error;
+                    
+                    await fetchOrders();
+                    setSelectedOrder(null);
+                } catch (error) {
+                    console.error('Error updating order status:', error);
+                }
+            };
+
+            const exportOrders = () => {
+                const csvContent = [
+                    ['Order Number', 'Date', 'Customer', 'Phone', 'Email', 'Product', 'Amount', 'Status', 'Payment Method'].join(','),
+                    ...filteredOrders.map(order => [
+                        order.order_number || '',
+                        new Date(order.created_at || '').toLocaleDateString(),
+                        order.full_name || '',
+                        order.phone_number || '',
+                        order.email || '',
+                        `"${order.product_name || ''}"`,
+                        order.amount || 0,
+                        order.status || 'pending',
+                        order.payment_method || ''
+                    ].join(','))
+                ].join('\n');
+
+                const blob = new Blob([csvContent], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `orders-${new Date().toISOString().split('T')[0]}.csv`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+            };
+
+            if (loading) {
+                return (
+                    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                        <div className="text-center">
+                            <div className="w-16 h-16 border-4 border-vantablack border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                            <p className="text-gray-600">Loading orders...</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-gray-50 p-6">
+                    <div className="max-w-7xl mx-auto">
+                        {/* Header */}
+                        <div className="mb-8">
+                            <h1 className="text-3xl font-bold text-vantablack mb-2">Order Management</h1>
+                            <p className="text-gray-600">Monitor and manage customer orders</p>
+                        </div>
+
+                        {/* Stats Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                            <div className="bg-white rounded-xl p-6 shadow-3d border border-gray-100">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+                                        <p className="text-2xl font-bold text-green-600">
+                                            KSh {stats.totalRevenue.toLocaleString()}
+                                        </p>
+                                    </div>
+                                    <DollarSignIcon />
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-xl p-6 shadow-3d border border-gray-100">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600">Total Orders</p>
+                                        <p className="text-2xl font-bold text-vantablack">{stats.totalOrders}</p>
+                                    </div>
+                                    <PackageIcon />
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-xl p-6 shadow-3d border border-gray-100">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600">Completed</p>
+                                        <p className="text-2xl font-bold text-green-600">{stats.completedOrders}</p>
+                                    </div>
+                                    <CheckCircleIcon />
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-xl p-6 shadow-3d border border-gray-100">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600">Pending</p>
+                                        <p className="text-2xl font-bold text-yellow-600">{stats.pendingOrders}</p>
+                                    </div>
+                                    <ClockIcon />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Filters and Search */}
+                        <div className="bg-white rounded-xl p-6 shadow-3d mb-8 border border-gray-100">
+                            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                                <div className="flex flex-col md:flex-row gap-4 flex-1">
+                                    <div className="relative flex-1">
+                                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                                            <SearchIcon />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            placeholder="Search orders..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-vantablack focus:border-transparent transition-all"
+                                        />
+                                    </div>
+                                    
+                                    <select
+                                        value={statusFilter}
+                                        onChange={(e) => setStatusFilter(e.target.value)}
+                                        className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-vantablack focus:border-transparent transition-all"
+                                    >
+                                        <option value="all">All Status</option>
+                                        <option value="pending">Pending</option>
+                                        <option value="confirmed">Confirmed</option>
+                                        <option value="processing">Processing</option>
+                                        <option value="shipped">Shipped</option>
+                                        <option value="delivered">Delivered</option>
+                                        <option value="paid">Paid</option>
+                                        <option value="cancelled">Cancelled</option>
+                                    </select>
+                                </div>
+
+                                <button
+                                    onClick={exportOrders}
+                                    className="flex items-center space-x-2 bg-vantablack text-white px-6 py-3 rounded-xl hover:bg-gray-800 transition-colors shadow-3d hover:shadow-3d-hover"
+                                >
+                                    <DownloadIcon />
+                                    <span>Export CSV</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Orders Table */}
+                        <div className="bg-white rounded-xl shadow-3d overflow-hidden border border-gray-100">
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead className="bg-gray-50 border-b border-gray-200">
+                                        <tr>
+                                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                Order Details
+                                            </th>
+                                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                Customer
+                                            </th>
+                                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                Product
+                                            </th>
+                                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                Amount
+                                            </th>
+                                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                Status
+                                            </th>
+                                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                Actions
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {filteredOrders.map((order) => (
+                                            <tr key={order.id} className="hover:bg-gray-50 transition-colors">
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div>
+                                                        <div className="text-sm font-semibold text-vantablack">
+                                                            {order.order_number || 'N/A'}
+                                                        </div>
+                                                        <div className="text-sm text-gray-500">
+                                                            {new Date(order.created_at || '').toLocaleDateString()}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div>
+                                                        <div className="text-sm font-medium text-vantablack">
+                                                            {order.full_name}
+                                                        </div>
+                                                        <div className="text-sm text-gray-500">
+                                                            {order.phone_number}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="text-sm font-medium text-vantablack max-w-xs truncate">
+                                                        {order.product_name}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className="text-sm font-bold text-vantablack">
+                                                        {order.amount ? `KSh ${Number(order.amount).toLocaleString()}` : 'N/A'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.status || 'pending')}`}>
+                                                        {getStatusIcon(order.status || 'pending')}
+                                                        <span className="capitalize ml-1">{order.status || 'pending'}</span>
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <button
+                                                        onClick={() => setSelectedOrder(order)}
+                                                        className="text-vantablack hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-lg"
+                                                        title="View Details"
+                                                    >
+                                                        <EyeIcon />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {filteredOrders.length === 0 && (
+                                <div className="text-center py-12">
+                                    <PackageIcon />
+                                    <h3 className="text-lg font-medium text-gray-900 mb-2">No orders found</h3>
+                                    <p className="text-gray-500">Try adjusting your search criteria</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Order Detail Modal */}
+                        {selectedOrder && (
+                            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-75 backdrop-blur-sm">
+                                <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-3d">
+                                    <div className="p-6 border-b border-gray-200">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-xl font-bold text-vantablack">Order Details</h3>
+                                            <button
+                                                onClick={() => setSelectedOrder(null)}
+                                                className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+                                            >
+                                                <XCircleIcon />
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="p-6 space-y-6">
+                                        {/* Order Information */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                                                <h4 className="font-semibold text-blue-800 mb-3">Order Information</h4>
+                                                <div className="space-y-2 text-sm">
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Order Number:</span>
+                                                        <span className="font-medium text-vantablack">{selectedOrder.order_number || 'N/A'}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Date:</span>
+                                                        <span className="font-medium text-vantablack">
+                                                            {new Date(selectedOrder.created_at || '').toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Status:</span>
+                                                        <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedOrder.status || 'pending')}`}>
+                                                            {getStatusIcon(selectedOrder.status || 'pending')}
+                                                            <span className="capitalize ml-1">{selectedOrder.status || 'pending'}</span>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-green-50 rounded-xl p-4 border border-green-200">
+                                                <h4 className="font-semibold text-green-800 mb-3">Customer Information</h4>
+                                                <div className="space-y-2 text-sm">
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Name:</span>
+                                                        <span className="font-medium text-vantablack">{selectedOrder.full_name}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Phone:</span>
+                                                        <span className="font-medium text-vantablack">{selectedOrder.phone_number}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Email:</span>
+                                                        <span className="font-medium text-vantablack">{selectedOrder.email}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Product Details */}
+                                        <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
+                                            <h4 className="font-semibold text-purple-800 mb-3">Product & Payment</h4>
+                                            <div className="space-y-2 text-sm">
+                                                <div>
+                                                    <span className="text-gray-600">Product:</span>
+                                                    <p className="font-medium text-vantablack mt-1">{selectedOrder.product_name}</p>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">Amount:</span>
+                                                    <span className="font-bold text-green-600">
+                                                        {selectedOrder.amount ? `KSh ${Number(selectedOrder.amount).toLocaleString()}` : 'N/A'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">Payment Method:</span>
+                                                    <span className="font-medium text-vantablack">{selectedOrder.payment_method}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Delivery Address */}
+                                        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                                            <h4 className="font-semibold text-gray-800 mb-3">Delivery Address</h4>
+                                            <p className="text-vantablack">{selectedOrder.delivery_address}</p>
+                                        </div>
+
+                                        {/* Status Update */}
+                                        <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-200">
+                                            <h4 className="font-semibold text-yellow-800 mb-3">Update Order Status</h4>
+                                            <div className="flex flex-wrap gap-2">
+                                                {['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'paid', 'cancelled'].map((status) => (
+                                                    <button
+                                                        key={status}
+                                                        onClick={() => updateOrderStatus(selectedOrder.id, status)}
+                                                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                                            selectedOrder.status === status
+                                                                ? 'bg-vantablack text-white'
+                                                                : 'bg-white text-vantablack border border-gray-300 hover:bg-gray-50'
+                                                        }`}
+                                                    >
+                                                        {status.charAt(0).toUpperCase() + status.slice(1)}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<AdminOrders />, document.getElementById('root'));
+    </script>
+</body>
+</html>

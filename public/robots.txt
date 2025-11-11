@@ -1,0 +1,19 @@
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://lifetimetechnology.com/sitemap.xml
+
+# Crawl-delay for better server performance
+Crawl-delay: 1
+
+# Block admin areas
+Disallow: /admin/
+Disallow: /api/
+Disallow: /*.json$
+
+# Allow important directories
+Allow: /category/
+Allow: /product/
+Allow: /images/
+Allow: /assets/
